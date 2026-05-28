@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KG Tech - AI Chatbot Widget</title>
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Modern CSS Variables / Theme Tokens */
+        :root {
+            --bg-color: #0A0F1E;
+            --chat-bg: #0F172A;
+            --accent-color: #1E90FF;
+            --accent-glow: rgba(30, 144, 255, 0.45);
+            --header-gradient: linear-gradient(135deg, #0A0F1E 0%, #161D30 100%);
+            --bubble-user: linear-gradient(135deg, #1E90FF 0%, #00BFFF 100%);
+            --bubble-bot: #1E293B;
+            --text-primary: #F8FAFC;
+            --text-secondary: #94A3B8;
+            --border-color: #334155;
+            --shadow-primary: rgba(0, 0, 0, 0.5);
+            --font-family: 'Inter', sans-serif;
+            --font-size-msg: 14px;
+            --transition-speed: 0.35s;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family);
+        }
+
+        body, html {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Demo Background styling for direct Vercel deployment */
+        .demo-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 80% 20%, #161D30 0%, #0A0F1E 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+            z-index: 1;
+        }
+
+        .demo-card {
+            background: rgba(22, 29, 48, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 600px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .demo-logo {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #1E90FF 0%, #00BFFF 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+        }
+
+        .demo-card h1 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .demo-card p {
+            color: var(--text-secondary);
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .demo-card code {
+            display: block;
+            background: #090D16;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            color: #38BDF8;
+            border: 1px solid #1E293B;
+            text-align: left;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* FLOATING WIDGET CONTAINER WRAPPER */
+        .widget-wrapper {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 999999;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            pointer-events: none; /* Allows click through except on active components */
+        }
+
+        .widget-wrapper * {
+            pointer-events: auto; /* Re-enable pointer events for elements inside */
+        }
+
+        /* 1. FLOATING LAUNCHER BUTTON */
+        .chat-launcher {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            box-shadow: 0 8px 24px var(--accent-glow), 0 4px 12px rgba(0, 0, 0, 0.4);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.3s;
+            position: relative;
+            outline: none;
+        }
+
+        .chat-launcher:hover {
+            transform: scale(1.1);
+            background: #2596FF;
+        }
+
+        .chat-launcher:active {
+            transform: scale(0.95);
+        }
+
+        /* Subtle pulse animation ring around launcher */
+        .chat-launcher::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid var(--accent-color);
+            top: 0;
+            left: 0;
+            box-sizing: border-box;
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+            pointer-events: none;
+        }
+
+        .chat-launcher svg {
+            width: 28px;
+            height: 28px;
+            fill: #FFFFFF;
+            transition: transform 0.4s ease;
+        }
+
+        /* Launcher close state icon change rotation */
+        .chat-launcher.active svg {
+            transform: rotate(180deg);
+        }
+
+        /* 2. CHAT WINDOW CONTAINER */
+        .chat-container {
+            width: 390px;
+            height: 600px;
+            max-height: calc(100vh - 110px);
+            background-color: var(--chat-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 2px rgba(255, 255, 255, 0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            margin-bottom: 16px;
+            transform: scale(0.8) translateY(40px);
+            opacity: 0;
+            pointer-events: none;
+            transition: transform var(--transition-speed) cubic-bezier(0.34, 1.56, 0.64, 1), opacity var(--transition-speed) ease;
+            transform-origin: bottom right;
+        }
+
+        /* Chat open active class */
+        .chat-container.active {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* 3. WIDGET HEADER */
+        .chat-header {
+            background: var(--header-gradient);
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .bot-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .bot-avatar-container {
+            position: relative;
+            width: 38px;
+            height: 38px;
+        }
+
+        .bot-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: rgba(30, 144, 255, 0.15);
+            border: 1.5px solid var(--accent-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bot-avatar svg {
+            width: 20px;
+            height: 20px;
+            fill: var(--accent-color);
+        }
+
+        /* Online indicator dot */
+        .online-dot {
+            width: 10px;
+            height: 10px;
+            background-color: #10B981;
+            border: 2px solid var(--chat-bg);
+            border-radius: 50%;
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            animation: online-pulse 2s infinite;
+        }
+
+        .bot-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bot-name {
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--text-primary);
+        }
+
+        .bot-status {
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .close-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s, transform 0.2s;
+            outline: none;
+        }
+
+        .close-btn:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            transform: rotate(90deg);
+        }
+
+        .close-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: var(--text-secondary);
+            transition: fill 0.2s;
+        }
+
+        .close-btn:hover svg {
+            fill: var(--text-primary);
+        }
+
+        /* 4. CHAT MESSAGES BODY */
+        .chat-body {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background-color: rgba(10, 15, 30, 0.2);
+            scroll-behavior: smooth;
+        }
+
+        /* Sleek scrollbars */
+        .chat-body::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-body::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-body::-webkit-scrollbar-thumb {
+            background: #1E293B;
+            border-radius: 10px;
+        }
+
+        .chat-body::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+
+        /* Message wrappers */
+        .msg-row {
+            display: flex;
+            width: 100%;
+            animation: msg-slide var(--transition-speed) cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
+            opacity: 0;
+            transform: translateY(15px);
+        }
+
+        .msg-row.bot-row {
+            justify-content: flex-start;
+            gap: 10px;
+        }
+
+        .msg-row.user-row {
+            justify-content: flex-end;
+        }
+
+        .small-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(30, 144, 255, 0.1);
+            border: 1px solid var(--accent-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .small-avatar svg {
+            width: 14px;
+            height: 14px;
+            fill: var(--accent-color);
+        }
+
+        .bubble-container {
+            display: flex;
+            flex-direction: column;
+            max-width: 75%;
+        }
+
+        .user-row .bubble-container {
+            align-items: flex-end;
+        }
+
+        .msg-bubble {
+            padding: 12px 16px;
+            font-size: var(--font-size-msg);
+            line-height: 1.5;
+            word-wrap: break-word;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .bot-row .msg-bubble {
+            background-color: var(--bubble-bot);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            border-top-left-radius: 4px;
+        }
+
+        .user-row .msg-bubble {
+            background: var(--bubble-user);
+            color: #FFFFFF;
+            border-radius: 16px;
+            border-top-right-radius: 4px;
+            font-weight: 500;
+        }
+
+        /* Message formatting */
+        .msg-bubble ul, .msg-bubble ol {
+            margin: 8px 0 8px 20px;
+        }
+
+        .msg-bubble li {
+            margin-bottom: 4px;
+        }
+
+        .msg-bubble p:not(:last-child) {
+            margin-bottom: 8px;
+        }
+
+        .msg-time {
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            padding: 0 4px;
+        }
+
+        /* Typing indicator animation */
+        .typing-bubble {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 14px 18px !important;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--text-secondary);
+            border-radius: 50%;
+            animation: dot-bounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        /* 5. SUGGESTIONS/QUICK REPLIES PANEL */
+        .suggestions-panel {
+            padding: 10px 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            background-color: rgba(15, 23, 42, 0.4);
+        }
+
+        .suggestion-btn {
+            background: #1E293B;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s, transform 0.1s;
+            outline: none;
+        }
+
+        .suggestion-btn:hover {
+            background: rgba(30, 144, 255, 0.1);
+            border-color: var(--accent-color);
+            transform: translateY(-1px);
+        }
+
+        .suggestion-btn:active {
+            transform: translateY(1px);
+        }
+
+        /* 6. INPUT AREA */
+        .chat-input-area {
+            padding: 14px 16px;
+            background-color: var(--header-gradient);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-input-container {
+            flex: 1;
+            position: relative;
+            background-color: #090D16;
+            border: 1.5px solid var(--border-color);
+            border-radius: 24px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .chat-input-container:focus-within {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 10px rgba(30, 144, 255, 0.2);
+        }
+
+        .chat-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            padding: 10px 16px;
+            font-size: 14px;
+            resize: none;
+            max-height: 80px;
+            min-height: 38px;
+            overflow-y: auto;
+            line-height: 1.3;
+        }
+
+        .chat-input::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .chat-input::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+
+        .send-btn {
+            background: var(--accent-color);
+            border: none;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s;
+            outline: none;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover {
+            background: #2596FF;
+            transform: scale(1.05);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+
+        .send-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: #FFFFFF;
+            margin-left: 2px;
+            transition: transform 0.2s;
+        }
+
+        .send-btn:hover svg {
+            transform: translate(1px, -1px);
+        }
+
+        /* 7. ANIMATIONS */
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.95);
+                opacity: 0.8;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(1.3);
+                opacity: 0;
+            }
+        }
+
+        @keyframes online-pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes msg-slide {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes dot-bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        /* Responsive adaptations */
+        @media (max-width: 480px) {
+            .widget-wrapper {
+                bottom: 12px;
+                right: 12px;
+                left: 12px;
+                align-items: stretch;
+            }
+            .chat-container {
+                width: 100%;
+                height: calc(100vh - 90px);
+                max-height: none;
+                margin-bottom: 10px;
+                transform-origin: bottom center;
+            }
+            .chat-launcher {
+                align-self: flex-end;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Demo Content for standalone hosting on Vercel -->
+    <div class="demo-background">
+        <div class="demo-card">
+            <div class="demo-logo">KG TECH</div>
+            <h1>B2B IT Solutions Chatbot</h1>
+            <p>Welcome to KG Tech's production-ready AI Assistant site. Click the support icon in the bottom-right corner to interact with our sales representative bot. It supports questions about AMCs, cybersecurity, office locations, coverage area, POS systems, printers, and more.</p>
+            <p style="font-size: 14px; margin-bottom: 10px;"><strong>Drop-in WordPress script code tag:</strong></p>
+            <code>&lt;script src="https://kgtech-bot.vercel.app/widget.js" async&gt;&lt;/script&gt;</code>
+        </div>
+    </div>
+
+    <!-- WIDGET WRAPPER -->
+    <div class="widget-wrapper">
+        
+        <!-- CHAT CONTAINER -->
+        <div class="chat-container" id="chatContainer">
+            
+            <!-- HEADER -->
+            <div class="chat-header">
+                <div class="bot-profile">
+                    <div class="bot-avatar-container">
+                        <div class="bot-avatar">
+                            <!-- Shield Icon SVG -->
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            </svg>
+                        </div>
+                        <div class="online-dot"></div>
+                    </div>
+                    <div class="bot-info">
+                        <div class="bot-name">KG TECH</div>
+                        <div class="bot-status">AI Rep • Always Active</div>
+                    </div>
+                </div>
+                <button class="close-btn" id="closeBtn" aria-label="Close Chat">
+                    <!-- Cross Icon SVG -->
+                    <svg viewBox="0 0 24 24">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- CHAT BODY -->
+            <div class="chat-body" id="chatBody">
+                <!-- Message Rows are injected here -->
+            </div>
+
+            <!-- SUGGESTED QUESTIONS (QUICK REPLIES) -->
+            <div class="suggestions-panel" id="suggestionsPanel">
+                <button class="suggestion-btn" onclick="sendSuggested('Do you cover Sharjah?')">Sharjah Coverage</button>
+                <button class="suggestion-btn" onclick="sendSuggested('What\'s included in your AMC contract?')">AMC Contract</button>
+                <button class="suggestion-btn" onclick="sendSuggested('Do you support HP printers?')">HP Printers</button>
+                <button class="suggestion-btn" onclick="sendSuggested('How do I get support fast?')">Fast Support</button>
+            </div>
+
+            <!-- INPUT BAR -->
+            <div class="chat-input-area">
+                <div class="chat-input-container">
+                    <textarea class="chat-input" id="chatInput" placeholder="Write a message..." rows="1"></textarea>
+                </div>
+                <button class="send-btn" id="sendBtn" aria-label="Send Message">
+                    <!-- Paper Plane Icon SVG -->
+                    <svg viewBox="0 0 24 24">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
+                </button>
+            </div>
+
+        </div>
+
+        <!-- FLOATING LAUNCHER -->
+        <button class="chat-launcher" id="chatLauncher" aria-label="Open support chat">
+            <!-- Support Shield Icon SVG inside Launcher -->
+            <svg id="launcherIcon" viewBox="0 0 24 24">
+                <!-- Default Shield Shield/Message Icon combo -->
+                <path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 2.98.98 4.29L1 23l6.71-1.98C9.02 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/>
+            </svg>
+        </button>
+
+    </div>
+
+    <script>
+        // --- 1. SYSTEM PROMPT & API PARAMETERS ---
+        const SYSTEM_PROMPT = `You are KG Tech's AI assistant — a knowledgeable, friendly, and highly professional sales and support representative for KG Tech (KG Technologies / KGT Trading LLC), a premier B2B IT solutions company based in Mankhool, Bur Dubai, Dubai, UAE.
+
+Your primary directive is to answer user questions confidently, concisely, and accurately by strictly referencing the OFFICIAL KG TECH KNOWLEDGE BASE below.
+
+IMPORTANT RULES:
+1. Always base your answers on the provided Knowledge Base.
+2. If the user asks a question whose specific answer is not found in the Knowledge Base, reply exactly: "Our team can confirm that — reach out at info@kgtech.ae or call us at +971 4 310 9100."
+3. Never make up prices, contract terms, employee details, or specific SLA durations not outlined here.
+4. Keep answers friendly, professional, and directly focused on business-to-business (B2B) IT solution needs.
+5. Offer to connect the client with our sales team at info@kgtech.ae or +971 4 310 9100 for custom proposals.
+
+=== OFFICIAL KG TECH KNOWLEDGE BASE ===
+* COMPANY OVERVIEW:
+  - Legal Name: KG Technologies (KGT Trading LLC)
+  - Brand Name: KG Tech
+  - Founded: 2014 (originally as KG Toner, starting with premium remanufactured toner cartridges, now full B2B IT Solutions provider)
+  - Office Address: M06, Manazil Al Raffa 01 Office Tower, Mankhool, Dubai, UAE
+  - Contact Phone: +971 4 310 9100 (Note: some old pages show +971 4 363 1300, but primary is +971 4 310 9100)
+  - Contact Email: info@kgtech.ae
+  - Website: https://kgtech.ae
+  - Target Industries: Retail, Hospitality, Manufacturing, Healthcare, Education, Government
+
+* SERVICES BREAKDOWN:
+  1. PRINTING SERVICES & MPS:
+     - Managed Print Services (MPS): Fleet assessment, printing infrastructure optimization, pattern tracking, hardware replacement, service/genuine parts/supplies included. Fixed monthly charge outsourcing models. Free evaluation.
+     - Annual Maintenance Contracts (AMC) for Office Printers: All technician labor included (free labor). Two options:
+       * AMC WITHOUT Parts: covers technician labor, spare parts are billed separately at preferential rates.
+       * AMC WITH Parts: covers both labor and all parts (except physical machine damage).
+     - Printer Sales: Inkjet photo printers, color laser printers, multifunctional all-in-one printers (sales of new & refurbished with warranty across all major brands and sizes).
+     - KG Premium Toner: In-house brand of premium, cost-effective, eco-friendly remanufactured toner cartridges.
+     - Print Support: Free expert telephone diagnostic advice (using sample prints, error messages, or videos) for potential & existing clients.
+  2. COMPUTING & SOFTWARE:
+     - Gaming PCs (custom builds available - send a photo/spec and we will build or exceed it), laptops, business workstations, servers, NAS storage, hardware/software/firmware upgrades.
+     - Software Licensing: Operating Systems (Windows, macOS, Linux, Android), security/productivity suites (Microsoft Office, Google Workspace), virtualization, backup & recovery, firewalls, and drivers.
+  3. NETWORKING SOLUTIONS:
+     - Network design & implementation, high-speed WiFi, VPN setups, IP Telephony, meeting room setup.
+     - Technical capabilities: LAN/WAN/MAN, star/mesh/ring/bus topologies, client-server, TCP/IP & UDP protocols.
+  4. IT INFRASTRUCTURE & CLOUD:
+     - Data center solutions, cloud migration, Infrastructure (IaaS), Platform (PaaS), Software (SaaS).
+     - Remote troubleshooting, colocation, remote system administration.
+  5. POINT OF SALE (POS) SYSTEMS:
+     - POS Hardware: POS machines, barcode scanners, barcode printers, and printing supplies.
+     - POS Software & Custom installation.
+     - System Types: Traditional/Stationary, Mobile POS (tablets/smartphones), Cloud-based POS, self-service kiosks.
+     - Core Features: Transaction processing, real-time inventory tracking, analytics reports, employee management, CRM, e-commerce integration.
+     - Served POS Sectors: Retail, hospitality, restaurants, supermarkets, fashion retail.
+  6. SOLUTIONS (CONSULTING & MSP):
+     - Strategic IT Consulting: Planning, digital transformation, network analytics, automation, AI advisory.
+     - Managed Service Provider (MSP): 24/7 proactive monitoring, help desk, infrastructure administration, patch management, cybersecurity protection, backup recovery, vendor management. Fixed monthly predictable costs.
+     - Cybersecurity: Endpoint protection, threat response, network firewalls, security audits.
+     - Data Backup & Recovery: regular backups, disaster recovery plans, data restoration services.
+     - Virtualization: Server and desktop virtualization.
+     - Collaboration: Unified Communications, video conferencing, team collaboration tools.
+     - IoT (Internet of Things): strategy, device integration, analytics.
+=== END OF KNOWLEDGE BASE ===`;
+
+
+        // --- 2. STATE STORAGE ---
+        let isOpen = false;
+        let chatHistory = [{ role: "system", content: SYSTEM_PROMPT }];
+        let welcomeSent = false;
+
+        // --- 3. DOM ELEMENTS ---
+        const chatLauncher = document.getElementById('chatLauncher');
+        const launcherIcon = document.getElementById('launcherIcon');
+        const chatContainer = document.getElementById('chatContainer');
+        const closeBtn = document.getElementById('closeBtn');
+        const chatBody = document.getElementById('chatBody');
+        const chatInput = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const suggestionsPanel = document.getElementById('suggestionsPanel');
+
+        // SVG markup constants
+        const botIconSVG = `<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+        const closeIconSVG = `<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/></svg>`;
+        const bubbleIconSVG = `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 2.98.98 4.29L1 23l6.71-1.98C9.02 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/></svg>`;
+
+        // --- 4. TOGGLE CHAT WIDGET ---
+        function toggleChat(state) {
+            isOpen = (state !== undefined) ? state : !isOpen;
+
+            if (isOpen) {
+                chatContainer.classList.add('active');
+                chatLauncher.classList.add('active');
+                // Change launcher icon to close cross with transition
+                chatLauncher.innerHTML = closeIconSVG;
+                
+                // Trigger iframe resizing to parent if loaded in iframe
+                notifyParentToggle(true);
+
+                // Focus input area on desktop
+                if (window.innerWidth > 480) {
+                    setTimeout(() => chatInput.focus(), 300);
+                }
+
+                // Send a friendly greeting on the first opening of the window
+                if (!welcomeSent) {
+                    sendWelcomeMessage();
+                }
+            } else {
+                chatContainer.classList.remove('active');
+                chatLauncher.classList.remove('active');
+                // Change launcher icon back to standard message shield icon
+                chatLauncher.innerHTML = bubbleIconSVG;
+
+                notifyParentToggle(false);
+            }
+        }
+
+        // PostMessage helper for iframe sizing
+        function notifyParentToggle(openState) {
+            window.parent.postMessage({
+                type: 'kgt-chat-toggle',
+                isOpen: openState
+            }, '*');
+        }
+
+        // Event listeners for toggle
+        chatLauncher.addEventListener('click', () => toggleChat());
+        closeBtn.addEventListener('click', () => toggleChat(false));
+
+        // --- 5. INITIAL GREETING ---
+        function sendWelcomeMessage() {
+            welcomeSent = true;
+            appendMessage("bot", "Hello! Welcome to KG Tech. 🤝 I'm your dedicated IT assistant.\n\nAre you looking for managed Annual Maintenance Contracts (AMC), printing supplies, POS systems, networking, cybersecurity, or cloud solutions today? Feel free to ask me anything!");
+        }
+
+        // --- 6. APPENDING MESSAGES TO DOM ---
+        function appendMessage(sender, text) {
+            const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const row = document.createElement('div');
+            row.classList.add('msg-row', `${sender}-row`);
+
+            // Parse simple paragraph text or lists nicely
+            const formattedText = parseMarkdown(text);
+
+            if (sender === 'bot') {
+                row.innerHTML = `
+                    <div class="small-avatar">${botIconSVG}</div>
+                    <div class="bubble-container">
+                        <div class="msg-bubble">${formattedText}</div>
+                        <span class="msg-time">${timeString}</span>
+                    </div>
+                `;
+            } else {
+                row.innerHTML = `
+                    <div class="bubble-container">
+                        <div class="msg-bubble">${formattedText}</div>
+                        <span class="msg-time">${timeString}</span>
+                    </div>
+                `;
+            }
+
+            chatBody.appendChild(row);
+            scrollToBottom();
+        }
+
+        // Scroll helper
+        function scrollToBottom() {
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        // Simple HTML formatting for common responses (bullets & linebreaks)
+        function parseMarkdown(text) {
+            // Safe escape of HTML
+            let escaped = text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+
+            // Standard line-breaks to <br>
+            escaped = escaped.replace(/\n/g, "<br>");
+
+            // Handle list elements (hyphen or asterisk followed by space)
+            // Match lines with bullet point "- " or "* " and wrap them in <li>
+            const lines = escaped.split("<br>");
+            let inList = false;
+            let result = [];
+
+            for (let line of lines) {
+                let trimmed = line.trim();
+                if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+                    if (!inList) {
+                        result.push("<ul>");
+                        inList = true;
+                    }
+                    result.push(`<li>${trimmed.substring(2)}</li>`);
+                } else {
+                    if (inList) {
+                        result.push("</ul>");
+                        inList = false;
+                    }
+                    result.push(line);
+                }
+            }
+            if (inList) {
+                result.push("</ul>");
+            }
+
+            return result.join("<br>").replace(/<\/ul><br><ul>/g, "").replace(/<br><ul>/g, "<ul>").replace(/<\/ul><br>/g, "</ul>");
+        }
+
+        // --- 7. TYPING INDICATOR CONTROLLER ---
+        function showTypingIndicator() {
+            const typingRow = document.createElement('div');
+            typingRow.classList.add('msg-row', 'bot-row');
+            typingRow.id = 'typingIndicator';
+            typingRow.innerHTML = `
+                <div class="small-avatar">${botIconSVG}</div>
+                <div class="bubble-container">
+                    <div class="msg-bubble typing-bubble">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            chatBody.appendChild(typingRow);
+            scrollToBottom();
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        // --- 8. SEND SUGGESTED & USER INTERACTION ---
+        function sendSuggested(questionText) {
+            handleUserMessage(questionText);
+        }
+
+        async function handleUserMessage(text) {
+            if (!text.trim()) return;
+
+            // Render message on interface
+            appendMessage("user", text);
+            
+            // Add user message to history
+            chatHistory.push({ role: "user", content: text });
+
+            // Show indicator
+            showTypingIndicator();
+
+            try {
+                // Call Groq API
+                const botReply = await callGroqAPI(chatHistory);
+                
+                removeTypingIndicator();
+                
+                // Render Bot response
+                appendMessage("bot", botReply);
+                
+                // Add reply to history
+                chatHistory.push({ role: "assistant", content: botReply });
+
+            } catch (error) {
+                console.error("Chatbot API Call Failed: ", error);
+                removeTypingIndicator();
+                appendMessage("bot", "Oops! I ran into a connection issue. Please check your network, or get in touch directly at info@kgtech.ae or call +971 4 310 9100.");
+            }
+        }
+
+        // --- 9. GROQ API CONNECTION ---
+        async function callGroqAPI(messagesArray) {
+            // Call our secure Vercel Serverless proxy to avoid CORS and protect keys
+            const proxyUrl = window.location.origin + "/api/chat";
+            const response = await fetch(proxyUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ messages: messagesArray })
+            });
+
+            if (!response.ok) {
+                throw new Error(`API returned HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.choices[0].message.content;
+        }
+
+        // --- 10. TEXTAREA HEIGHT & SUBMIT LISTENER ---
+        chatInput.addEventListener('keydown', (e) => {
+            // Enter sends the message (without Shift key)
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitInput();
+            }
+        });
+
+        // Auto growing input box
+        chatInput.addEventListener('input', () => {
+            chatInput.style.height = 'auto';
+            chatInput.style.height = (chatInput.scrollHeight) + 'px';
+        });
+
+        sendBtn.addEventListener('click', submitInput);
+
+        function submitInput() {
+            const text = chatInput.value;
+            if (!text.trim()) return;
+
+            chatInput.value = '';
+            chatInput.style.height = 'auto'; // Reset text box size
+            handleUserMessage(text);
+        }
+
+        // --- 11. STANDALONE WIDGET RESPONSIVENESS IN EMBEDS ---
+        // If parent asks us to open/close or do something, handle it here
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.action) {
+                if (event.data.action === 'open') {
+                    toggleChat(true);
+                } else if (event.data.action === 'close') {
+                    toggleChat(false);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
