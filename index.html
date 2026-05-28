@@ -992,27 +992,45 @@ IMPORTANT RULES:
             } catch (error) {
                 console.error("Chatbot API Call Failed: ", error);
                 removeTypingIndicator();
-                appendMessage("bot", "Oops! I ran into a connection issue. Please check your network, or get in touch directly at info@kgtech.ae or call +971 4 310 9100.");
+                appendMessage("bot", `Oops! I ran into a connection issue: <strong>${error.message}</strong>.<br><br>Please check your network, or get in touch directly at info@kgtech.ae or call +971 4 310 9100.`);
             }
         }
 
         // --- 9. GROQ API CONNECTION ---
         async function callGroqAPI(messagesArray) {
             // Call our secure Vercel Serverless proxy to avoid CORS and protect keys
-            const proxyUrl = window.location.origin + "/api/chat";
-            const response = await fetch(proxyUrl, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ messages: messagesArray })
-            });
+            const proxyUrl = "/api/chat"; // Safe relative URL resolution on Vercel
+            
+            let response;
+            try {
+                response = await fetch(proxyUrl, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ messages: messagesArray })
+                });
+            } catch (netError) {
+                throw new Error("Network request failed. Ensure your backend function is deployed and reachable.");
+            }
 
             if (!response.ok) {
-                throw new Error(`API returned HTTP ${response.status}`);
+                let errorMsg = `Server returned status ${response.status}`;
+                try {
+                    const errData = await response.json();
+                    if (errData && errData.error) {
+                        errorMsg = errData.error;
+                    }
+                } catch (e) {}
+                throw new Error(errorMsg);
             }
 
             const data = await response.json();
+            
+            if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+                throw new Error("Invalid response format received from AI backend.");
+            }
+            
             return data.choices[0].message.content;
         }
 
