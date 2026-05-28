@@ -45,8 +45,8 @@ export default async function handler(req, res) {
         }
 
         // 2. Validate environment variable
-        const GROQ_API_KEY = process.env.GROQ_API_KEY;
-        if (!GROQ_API_KEY || GROQ_API_KEY.trim() === "") {
+        const GROQ_API_KEY = process.env.GROQ_API_KEY ? process.env.GROQ_API_KEY.trim() : "";
+        if (!GROQ_API_KEY) {
             console.error("[CRITICAL ERROR] GROQ_API_KEY environment variable is not defined or is empty in Vercel!");
             res.status(500).json({ 
                 error: "Configuration Error: GROQ_API_KEY is not defined in Vercel Environment Variables. Please set it in your Vercel Project Settings." 
@@ -54,10 +54,34 @@ export default async function handler(req, res) {
             return;
         }
 
-        const GROQ_MODEL = "llama3-70b-8192";
         const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
-        console.log(`[INFO] Proxying request to Groq API. Messages count: ${messages.length}`);
+        // Find the system prompt and conversation history
+        const systemPromptMsg = messages.find(m => m.role === 'system');
+        const systemPrompt = (systemPromptMsg && typeof systemPromptMsg.content === 'string') 
+            ? systemPromptMsg.content.trim() 
+            : '';
+
+        const conversationHistory = messages.filter(m => m.role !== 'system');
+        const validConversationHistory = conversationHistory.filter(m => 
+            m && 
+            typeof m.role === 'string' && m.role.trim() !== '' &&
+            typeof m.content === 'string' && m.content.trim() !== ''
+        ).map(m => ({
+            role: m.role.trim(),
+            content: m.content.trim()
+        }));
+
+        const requestBody = {
+            model: "llama-3.3-70b-versatile",
+            max_tokens: 1024,
+            messages: [
+                { role: "system", content: systemPrompt },
+                ...validConversationHistory
+            ]
+        };
+
+        console.log(JSON.stringify(requestBody));
 
         // 3. Make the API Call to Groq
         const response = await fetch(GROQ_ENDPOINT, {
@@ -66,13 +90,7 @@ export default async function handler(req, res) {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${GROQ_API_KEY}`
             },
-            body: JSON.stringify({
-                model: GROQ_MODEL,
-                messages: messages,
-                temperature: 0.7,
-                max_tokens: 512,
-                top_p: 0.95
-            })
+            body: JSON.stringify(requestBody)
         });
 
         // 4. Handle API responses
